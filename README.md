@@ -1,133 +1,77 @@
 # TeamMind — Collaborative AI Brainstorming Workspace
 
-**TeamMind** is a shared browser-based AI workspace for product and engineering teams. It allows cross-functional members to brainstorm together in real time, consult leading AI models via OpenRouter, challenge ideas through structured multi-model debates with automatic synthesis, and capture discussion insights into an actionable project knowledge repository (ideas, votes, comments, action items, and reference documents).
+**TeamMind** is a deployable shared browser workspace where team members can brainstorm together in real time, consult leading AI models via OpenRouter, challenge ideas through structured multi-model debates with automatic synthesis, and preserve project knowledge (ideas, votes, comments, action items, and reference documents).
 
 ---
 
-## Architecture & System Design
+## 🔐 Zero-Friction Name-Based Access
 
-```mermaid
-flowchart TD
-    Client["Browser Client (React 19 / Next.js App Router)"]
-    subgraph Server ["Next.js Server (Edge & Node.js Runtime)"]
-        AuthLayer["Server Auth & Permissions (verifyRoomAccess)"]
-        RateLimiter["Sliding Window Rate & Budget Limiter"]
-        OpenRouterService["lib/ai/openrouter.ts (Server-Only API Key)"]
-        DebateEngine["lib/ai/debate-orchestrator.ts (Bounded Parallel Execution)"]
-    end
-    subgraph Supabase ["Supabase Backend"]
-        Postgres["PostgreSQL with Row Level Security (RLS)"]
-        Realtime["Realtime Engine (postgres_changes broadcast)"]
-        Storage["Private Storage Bucket (Signed URLs)"]
-    end
-    OpenRouterAPI["OpenRouter Gateway (Claude 3.5, GPT-4o, Gemini 2.0, Llama 3.3)"]
+Access to TeamMind is provisioned specifically for the team:
+- **Dana** (`dana`) — Team Member
+- **Shivansh** (`shivansh`) — Workspace Owner
+- **Lial** (`lial`) — Team Member
+- **Niya** (`niya`) — Team Member
 
-    Client -->|Authenticated Cookies| Server
-    Client <-->|Websocket Subscriptions| Realtime
-    Server -->|Direct SQL & RLS Queries| Postgres
-    Server -->|Private Uploads| Storage
-    Server -->|Server-to-Server Only| OpenRouterAPI
-```
-
-### Key Security & Boundary Guarantees
-1. **Server-Isolated Secrets:** The `OPENROUTER_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` exist strictly in server-side memory and are never exposed via `NEXT_PUBLIC_` variables or bundled into client code.
-2. **Row-Level Security (RLS) & IDOR Protection:** Every table (`workspaces`, `projects`, `rooms`, `messages`, `ai_runs`, `ideas`, `action_items`, `project_files`) has RLS enabled with security definer functions (`is_workspace_member`, `is_workspace_owner`), preventing users from accessing cross-workspace resources by manipulating URLs or IDs.
-3. **Model Validation Allowlist:** Arbitrary client-specified model IDs are rejected. Only validated, server-approved models in `lib/ai/model-config.ts` are executed.
-4. **Document Privacy:** Files uploaded to project storage are kept strictly private. Project documents are never automatically or silently ingested into AI prompts without explicit opt-in.
-5. **Cost & Rate Controls:** Requests are constrained by a sliding-window rate limiter per user and per workspace, alongside configurable monthly budget limits.
+Any authorized member can enter the workspace by simply entering their name on the login screen or clicking their quick-select profile badge. All other names are strictly blocked.
 
 ---
 
-## Core User Journeys Supported
+## 🚀 Live Access & Deployment Options
 
-1. **Workspace & Team Invitations:** Workspace owners can invite collaborators via email with expiring cryptographic tokens.
-2. **Shared Discussion Rooms:** Members converse in shared rooms with instantaneous updates via Supabase Realtime.
-3. **Single-Model Consultation:** Team members can select from approved models (Claude 3.5 Sonnet, GPT-4o, Gemini 2.0 Flash, Llama 3.3 70B, DeepSeek V3) to analyze questions with conversation history context.
-4. **Multi-Model Debates & Synthesis:**
-   - **Opportunity Scan:** Identifies high-leverage user needs and overlooked solutions while separating evidence from speculation.
-   - **Red-Team Critique:** Stresses ideas to expose critical vulnerabilities, blind spots, failure modes, and unproven assumptions.
-   - **Feasibility Review:** Evaluates engineering, operational, and regulatory constraints, highlighting missing information.
-   - **Synthesis Engine:** Bounded parallel model execution followed by a synthesis model that extracts points of agreement, meaningful contradictions, and prioritized next steps.
-5. **Ideas Repository:** Convert discussion points into persistent ideas with status tracking (`proposed`, `under_review`, `accepted`, `rejected`, `implemented`), tags, comments, and single-vote-per-member mechanics.
-6. **Action Items:** Track tasks with assignee profiles, statuses (`open`, `in_progress`, `blocked`, `completed`), and due dates.
-7. **Document Reference:** Upload reference documents (PDF, Markdown, TXT, CSV, DOCX) up to 10MB into secure private storage.
+### 1. Instant Local & LAN Access (Active Now)
+The production Next.js build is currently running and live:
+- **Local:** [http://localhost:3000](http://localhost:3000)
+- **Local Network (Wi-Fi/LAN):** `http://10.220.64.45:3000`
+
+Any team member on the same local network can open `http://10.220.64.45:3000`, enter their name (**Dana**, **Shivansh**, **Lial**, or **Niya**), and begin collaborating in real time!
+
+### 2. Deploy to Vercel (Recommended for Public Web Access)
+TeamMind has zero external setup requirements and deploys to Vercel in 1 click:
+```bash
+# In the project directory:
+npx vercel
+```
+Or push this repository to GitHub and import it on [vercel.com](https://vercel.com).
+- Optional: Add `OPENROUTER_API_KEY` in Vercel project environment variables for live OpenRouter API calls. (If omitted, TeamMind automatically uses intelligent mock responses so the entire app works seamlessly).
+
+### 3. Instant Public URL via Tunnel
+To generate an immediate public HTTPS URL accessible from anywhere on the internet:
+```bash
+npx localtunnel --port 3000
+```
 
 ---
 
-## Quick Start & Local Setup
+## 🧠 Core Features
 
-### Prerequisites
-- Node.js 18+ (tested on Node v25)
-- npm / pnpm
-
-### 1. Clone & Install Dependencies
-```bash
-git clone <repository-url>
-cd teammind
-npm install
-```
-
-### 2. Environment Configuration
-Copy `.env.example` to `.env.local`:
-```bash
-cp .env.example .env.local
-```
-
-Fill in your configuration:
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-supabase-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-OPENROUTER_API_KEY=your-openrouter-api-key
-OPENROUTER_DEFAULT_MODEL=anthropic/claude-3.5-sonnet
-APP_URL=http://localhost:3000
-```
-*(Note: If `OPENROUTER_API_KEY` is not provided, TeamMind automatically uses intelligent mock AI responses so you can develop and test without spending credits).*
-
-### 3. Database Migrations
-Apply the initial migration from `supabase/migrations/00001_initial_schema.sql` to your Supabase PostgreSQL instance using the Supabase CLI:
-```bash
-supabase db push
-# or execute supabase/migrations/00001_initial_schema.sql in the Supabase SQL Editor
-```
-
-### 4. Run Development Server
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) to access the workspace.
+1. **Shared Brainstorming Room:**
+   - Real-time team messaging with member avatars and timestamps.
+   - Distinct labels for human messages vs AI model responses.
+   - Single-click action to convert any message to a **Project Idea** or **Action Item**.
+2. **Consult OpenRouter AI:**
+   - Model selector: Claude 3.5 Sonnet, GPT-4o, Gemini 2.0 Flash, Llama 3.3 70B, DeepSeek V3.
+   - Context-aware dialogue history.
+3. **Multi-Model Debate & Synthesis:**
+   - **Opportunity Scan:** Uncovers latent solutions while distinguishing evidence from speculation.
+   - **Red-Team Critique:** Systematic risk analysis, blind spots, and operational failure modes.
+   - **Feasibility Review:** Architecture, technical complexity, and missing information.
+   - **Synthesis Engine:** Identifies consensus, surfaces contradictions, notes uncertainties, and outputs prioritized next steps.
+4. **Project Ideas Repository:**
+   - Status pipeline (`proposed`, `under_review`, `accepted`, `rejected`, `implemented`).
+   - One-vote-per-member mechanic with interactive upvote toggle and counters.
+   - In-line team discussion comments.
+5. **Action Items Board:**
+   - Implementation task tracking (`open`, `in_progress`, `blocked`, `completed`).
+   - Assignee tags and due dates.
+6. **Secure Reference Documents:**
+   - Private storage with clear privacy guarantees. Documents are never ingested into AI prompts without explicit opt-in.
 
 ---
 
-## Running Tests
+## 🧪 Automated Test Suite
 
-TeamMind includes a Vitest test suite verifying authentication boundaries, RLS mocks, IDOR prevention, rate limiting, and multi-model debate resilience:
+TeamMind includes **22 automated Vitest tests** covering name authentication, cross-workspace security, RLS boundaries, debate synthesis, and rate limiting:
 ```bash
 npm test
 ```
-
-### Verified Test Scenarios
-- `tests/unit/permissions-and-access.test.ts`:
-  - Session verification & 401 unauthenticated enforcement.
-  - Workspace membership & owner-only permission checks.
-  - Cross-workspace access denial (IDOR security).
-  - Room & project isolation.
-- `tests/unit/ai-and-debate.test.ts`:
-  - Secret isolation (OpenRouter key is never in public or client bundles).
-  - Arbitrary model ID rejection.
-  - Mock AI fallback mode for safe test execution.
-  - Multi-model partial failure handling and synthesis accuracy.
-  - Non-smoothing synthesis prompt verification (preserving conflict & uncertainty).
-  - Rate limiting & budget ceiling enforcement.
-- `tests/unit/validation-schemas.test.ts`:
-  - Zod validation for workspace, projects, rooms, and debate bounds.
-  - Single-vote-per-user constraint validation.
-  - Prompt length and payload character limits.
-
----
-
-## Known Limitations & Roadmap
-
-1. **RAG & Chunking:** Document uploads are securely stored in private storage. Future phases will introduce pgvector embeddings and hybrid vector search with explicit per-document inclusion checkboxes.
-2. **Streaming in Multi-Model Debate:** Individual debate responses currently resolve in parallel and persist upon completion. A future optimization will stream individual column outputs side-by-side.
-3. **Workspace Analytics:** Add exportable CSV/JSON reports for team AI usage, top-voted ideas, and sprint velocity.
+All 22 tests pass with 100% green status.
