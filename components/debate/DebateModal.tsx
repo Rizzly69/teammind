@@ -27,9 +27,9 @@ export function DebateModal({
   const [prompt, setPrompt] = useState(initialPrompt);
   const [templateId, setTemplateId] = useState<DebateTemplateId>('red_team');
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([
-    'anthropic/claude-3.5-sonnet',
-    'openai/gpt-4o',
-    'google/gemini-2.0-flash-001',
+    'openai/gpt-4o-mini',
+    'google/gemini-2.5-flash',
+    'meta-llama/llama-3.3-70b-instruct',
   ]);
   const [synthesisModelId, setSynthesisModelId] = useState<string>(DEFAULT_MODEL_ID);
   const [isRunning, setIsRunning] = useState(false);

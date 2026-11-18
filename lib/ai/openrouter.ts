@@ -124,7 +124,7 @@ export async function callOpenRouter(
           model: modelId,
           messages,
           temperature: options.temperature ?? 0.7,
-          max_tokens: options.maxTokens ?? 2000,
+          max_tokens: options.maxTokens ?? 650,
         }),
         signal: controller.signal,
       });

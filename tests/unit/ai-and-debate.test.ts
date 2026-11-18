@@ -32,7 +32,7 @@ describe('AI Gateway & Multi-Model Debate Orchestrator', () => {
   it('8. Successfully calls mock AI fallback without spending real credits in tests', async () => {
     const response = await callOpenRouter([
       { role: 'user', content: 'What are the red-team risks for our auth system?' },
-    ], { modelId: 'anthropic/claude-3.5-sonnet' });
+    ], { modelId: 'openai/gpt-4o-mini' });
 
     expect(response).toBeDefined();
     expect(response.content).toContain('Critical Evaluation');
@@ -95,8 +95,8 @@ describe('AI Gateway & Multi-Model Debate Orchestrator', () => {
       userId: 'user-uuid-1',
       prompt: 'Should we store session tokens in HttpOnly cookies or localStorage?',
       templateId: 'red_team',
-      modelIds: ['anthropic/claude-3.5-sonnet', 'openai/gpt-4o', 'google/gemini-2.0-flash-001'],
-      synthesisModelId: 'anthropic/claude-3.5-sonnet',
+      modelIds: ['openai/gpt-4o-mini', 'google/gemini-2.5-flash', 'meta-llama/llama-3.3-70b-instruct'],
+      synthesisModelId: 'openai/gpt-4o-mini',
     });
 
     expect(result.runId).toBe('run-uuid-123');

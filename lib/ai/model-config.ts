@@ -2,26 +2,18 @@ import { ModelOption } from '@/types';
 
 export const ALLOWED_MODELS: ModelOption[] = [
   {
-    id: 'anthropic/claude-3.5-sonnet',
-    name: 'Claude 3.5 Sonnet',
-    provider: 'Anthropic',
-    description: 'Industry-leading reasoning, nuanced code analysis, and high-fidelity synthesis.',
-    contextWindow: 200000,
-    isDebateRecommended: true,
-  },
-  {
-    id: 'openai/gpt-4o',
-    name: 'GPT-4o',
+    id: 'openai/gpt-4o-mini',
+    name: 'GPT-4o Mini',
     provider: 'OpenAI',
-    description: 'Omni flagship model for cross-domain critical thinking and problem decomposition.',
+    description: 'Fast, intelligent, and highly cost-efficient flagship model for team brainstorming.',
     contextWindow: 128000,
     isDebateRecommended: true,
   },
   {
-    id: 'google/gemini-2.0-flash-001',
-    name: 'Gemini 2.0 Flash',
+    id: 'google/gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
     provider: 'Google',
-    description: 'Ultra-fast, high-throughput model with a massive context window and strong reasoning.',
+    description: 'High-speed reasoning model with deep context understanding and rapid throughput.',
     contextWindow: 1000000,
     isDebateRecommended: true,
   },
@@ -29,7 +21,7 @@ export const ALLOWED_MODELS: ModelOption[] = [
     id: 'meta-llama/llama-3.3-70b-instruct',
     name: 'Llama 3.3 70B',
     provider: 'Meta',
-    description: 'Premier open-weights model fine-tuned for structured instruction following and debate.',
+    description: 'Premier open-weights model fine-tuned for critical analysis and structured debates.',
     contextWindow: 128000,
     isDebateRecommended: true,
   },
@@ -37,14 +29,22 @@ export const ALLOWED_MODELS: ModelOption[] = [
     id: 'deepseek/deepseek-chat',
     name: 'DeepSeek V3',
     provider: 'DeepSeek',
-    description: 'Strong architectural efficiency with rigorous logical analysis.',
+    description: 'High-leverage analytical reasoning model with strong technical problem solving.',
     contextWindow: 64000,
+    isDebateRecommended: true,
+  },
+  {
+    id: 'openai/gpt-4o',
+    name: 'GPT-4o',
+    provider: 'OpenAI',
+    description: 'Omni model for complex strategic synthesis and multi-domain problem decomposition.',
+    contextWindow: 128000,
     isDebateRecommended: false,
   },
 ];
 
 export const DEFAULT_MODEL_ID =
-  process.env.OPENROUTER_DEFAULT_MODEL || 'anthropic/claude-3.5-sonnet';
+  process.env.OPENROUTER_DEFAULT_MODEL || 'openai/gpt-4o-mini';
 
 export function getModelById(modelId: string): ModelOption | undefined {
   return ALLOWED_MODELS.find((m) => m.id === modelId);

@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     const result = await callOpenRouter(messagesToSend, {
       modelId,
       temperature: 0.7,
-      maxTokens: 2500,
+      maxTokens: 650,
     });
 
     // 4. Persist AI response
