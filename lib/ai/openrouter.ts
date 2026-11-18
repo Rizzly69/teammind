@@ -28,19 +28,20 @@ export class OpenRouterError extends Error {
   }
 }
 
+export function extractOpenRouterKey(): string {
+  const raw = process.env.OPENROUTER_API_KEY || '';
+  const match = raw.match(/(sk-or-v1-[a-zA-Z0-9_-]+)/);
+  if (match) return match[1];
+  return raw.trim().replace(/^["'`]|["'`]$/g, '');
+}
+
 /**
  * Checks if mock mode should be used (e.g. during test runs or if API key is not configured)
  */
 export function isMockAIEnabled(): boolean {
-  const rawKey = process.env.OPENROUTER_API_KEY;
-  if (!rawKey) return process.env.NODE_ENV === 'test';
-  const key = rawKey.trim().replace(/^["']|["']$/g, '');
-  return (
-    process.env.NODE_ENV === 'test' ||
-    !key ||
-    key.includes('placeholder') ||
-    key === ''
-  );
+  if (process.env.NODE_ENV === 'test') return true;
+  const key = extractOpenRouterKey();
+  return !key || key.includes('placeholder') || key === '';
 }
 
 /**
@@ -102,7 +103,14 @@ export async function callOpenRouter(
     };
   }
 
-  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim().replace(/^["']|["']$/g, '');
+  const apiKey = extractOpenRouterKey();
+  if (!apiKey) {
+    throw new OpenRouterError(
+      'OPENROUTER_API_KEY is not configured or detected in Vercel environment variables. Please check Vercel Settings -> Environment Variables and redeploy.',
+      500,
+      false
+    );
+  }
   const timeoutMs = options.timeoutMs || 45000;
   const maxRetries = options.retries ?? 1;
 
