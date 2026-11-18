@@ -32,12 +32,14 @@ export class OpenRouterError extends Error {
  * Checks if mock mode should be used (e.g. during test runs or if API key is not configured)
  */
 export function isMockAIEnabled(): boolean {
-  const key = process.env.OPENROUTER_API_KEY;
+  const rawKey = process.env.OPENROUTER_API_KEY;
+  if (!rawKey) return process.env.NODE_ENV === 'test';
+  const key = rawKey.trim().replace(/^["']|["']$/g, '');
   return (
     process.env.NODE_ENV === 'test' ||
     !key ||
     key.includes('placeholder') ||
-    key.trim() === ''
+    key === ''
   );
 }
 
@@ -100,7 +102,7 @@ export async function callOpenRouter(
     };
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY!;
+  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim().replace(/^["']|["']$/g, '');
   const timeoutMs = options.timeoutMs || 45000;
   const maxRetries = options.retries ?? 1;
 
