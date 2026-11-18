@@ -22,7 +22,11 @@ export default async function WorkspaceLayout({
 
   if (userCookie?.value) {
     try {
-      const parsed = JSON.parse(userCookie.value);
+      let raw = userCookie.value;
+      if (raw.includes('%')) {
+        raw = decodeURIComponent(raw);
+      }
+      const parsed = JSON.parse(raw);
       userEmail = parsed.email || userEmail;
       userName = parsed.name || userName;
     } catch {

@@ -32,7 +32,15 @@ export async function requireAuth(
     const cookieStore = await cookies();
     const userCookie = cookieStore.get('teammind_user');
     if (userCookie?.value) {
-      const parsed = JSON.parse(userCookie.value);
+      let raw = userCookie.value;
+      try {
+        if (raw.includes('%')) {
+          raw = decodeURIComponent(raw);
+        }
+      } catch {
+        // ignore decode error
+      }
+      const parsed = JSON.parse(raw);
       if (parsed && parsed.id) {
         return {
           id: parsed.id,
