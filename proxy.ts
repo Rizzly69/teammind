@@ -1,11 +1,14 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { DEFAULT_WORKSPACE_ID, DEFAULT_PROJECT_ID, DEFAULT_ROOM_ID } from '@/lib/store/workspace-store';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const userCookie = request.cookies.get('teammind_user');
   const pathname = request.nextUrl.pathname;
 
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/invite');
+  const isAuthPage =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/invite');
   const isApiRoute = pathname.startsWith('/api');
   const isStatic = pathname.startsWith('/_next') || pathname.includes('.');
 
@@ -32,6 +35,8 @@ export async function middleware(request: NextRequest) {
 
   return NextResponse.next();
 }
+
+export default proxy;
 
 export const config = {
   matcher: [
