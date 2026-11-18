@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { Message } from '@/types';
-import { Bot, User, Lightbulb, CheckSquare, Sparkles, AlertTriangle } from 'lucide-react';
+import { Bot, User, Lightbulb, CheckSquare, Sparkles } from 'lucide-react';
 import { getModelById } from '@/lib/ai/model-config';
+import { getAuthorizedMemberById, getAuthorizedMemberByName } from '@/lib/auth/authorized-members';
 
 interface MessageItemProps {
   message: Message;
@@ -18,6 +19,12 @@ export function MessageItem({ message, onSaveAsIdea, onCreateActionItem }: Messa
 
   const model = message.model_id ? getModelById(message.model_id) : null;
   const modelDisplayName = model ? `${model.name} (${model.provider})` : message.model_id;
+
+  const member =
+    (message.sender_user_id ? getAuthorizedMemberById(message.sender_user_id) : null) ||
+    (message.sender_profile?.display_name
+      ? getAuthorizedMemberByName(message.sender_profile.display_name)
+      : null);
 
   const timestamp = new Date(message.created_at).toLocaleTimeString([], {
     hour: '2-digit',
@@ -44,11 +51,13 @@ export function MessageItem({ message, onSaveAsIdea, onCreateActionItem }: Messa
     >
       {/* Avatar Icon */}
       <div
-        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs ${
           isAssistant
             ? isDebateSynthesis
               ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/20'
-              : 'bg-blue-600/90 text-white'
+              : 'bg-indigo-600 text-white'
+            : member
+            ? `${member.avatarColor} text-white shadow-sm`
             : 'bg-slate-700 text-slate-200'
         }`}
       >
@@ -58,6 +67,8 @@ export function MessageItem({ message, onSaveAsIdea, onCreateActionItem }: Messa
           ) : (
             <Bot className="w-4 h-4" />
           )
+        ) : member ? (
+          <span>{member.name[0]}</span>
         ) : (
           <User className="w-4 h-4" />
         )}
@@ -71,8 +82,22 @@ export function MessageItem({ message, onSaveAsIdea, onCreateActionItem }: Messa
               ? isDebateSynthesis
                 ? 'Multi-Model Synthesis'
                 : modelDisplayName || 'AI Assistant'
+              : member
+              ? member.name
               : message.sender_profile?.display_name || 'Team Member'}
           </span>
+
+          {!isAssistant && member && (
+            <span
+              className={`text-[10px] font-medium px-2 py-0.2 rounded-full border ${
+                member.role === 'owner'
+                  ? 'bg-blue-950/80 text-blue-400 border-blue-800/60'
+                  : 'bg-slate-800 text-slate-300 border-slate-700'
+              }`}
+            >
+              {member.role === 'owner' ? 'Owner' : 'Team'}
+            </span>
+          )}
 
           {isAssistant && model && (
             <span className="text-[11px] bg-blue-950/80 text-blue-400 border border-blue-800/60 px-2 py-0.5 rounded-full font-mono">

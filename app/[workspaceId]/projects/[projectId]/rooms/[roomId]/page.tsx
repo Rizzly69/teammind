@@ -117,7 +117,45 @@ export default function RoomPage() {
       )
       .subscribe();
 
+    // Active Live Sync Polling: ensures Dana, Shivansh, Lial, and Niya
+    // receive all team messages, AI replies, ideas, and tasks automatically in real time
+    const syncInterval = setInterval(() => {
+      fetch(`/api/rooms/${roomId}/messages`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.messages && Array.isArray(data.messages)) {
+            setMessages((prev) => {
+              if (
+                data.messages.length !== prev.length ||
+                (data.messages.length > 0 &&
+                  prev.length > 0 &&
+                  data.messages[data.messages.length - 1].id !== prev[prev.length - 1].id)
+              ) {
+                return data.messages;
+              }
+              return prev;
+            });
+          }
+        })
+        .catch(() => {});
+
+      fetch(`/api/ideas?projectId=${projectId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ideas) setProjectIdeas(data.ideas);
+        })
+        .catch(() => {});
+
+      fetch(`/api/action-items?projectId=${projectId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.actionItems) setActionItems(data.actionItems);
+        })
+        .catch(() => {});
+    }, 2000);
+
     return () => {
+      clearInterval(syncInterval);
       supabase.removeChannel(channel);
     };
   }, [roomId, projectId]);
@@ -317,12 +355,29 @@ export default function RoomPage() {
             <div>
               <h2 className="text-sm font-bold text-white tracking-tight flex items-center space-x-2">
                 <span>Discussion Room</span>
-                <span className="text-[11px] bg-slate-800 text-slate-400 font-normal px-2 py-0.5 rounded-full border border-slate-700">
-                  Shared Session
+                <span className="inline-flex items-center space-x-1.5 text-[11px] bg-emerald-950/80 text-emerald-400 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-800/60">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Live Team Sync</span>
                 </span>
               </h2>
-              <div className="text-[11px] text-slate-400">
-                Messages and model responses are visible to all workspace members in real time.
+              <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-1.5 mt-0.5">
+                <span>Team:</span>
+                <span className="inline-flex items-center space-x-1 text-slate-300 font-medium bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span>Shivansh</span>
+                </span>
+                <span className="inline-flex items-center space-x-1 text-slate-300 font-medium bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>Dana</span>
+                </span>
+                <span className="inline-flex items-center space-x-1 text-slate-300 font-medium bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                  <span>Lial</span>
+                </span>
+                <span className="inline-flex items-center space-x-1 text-slate-300 font-medium bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span>Niya</span>
+                </span>
               </div>
             </div>
           </div>
