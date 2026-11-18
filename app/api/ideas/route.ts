@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { requireAuth, verifyProjectAccess } from '@/lib/permissions/workspace';
 import { createIdeaSchema, updateIdeaStatusSchema } from '@/lib/validation/schemas';
+import { getStore } from '@/lib/store/workspace-store';
+import { Idea } from '@/types';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,6 +17,12 @@ export async function GET(req: NextRequest) {
 
     await verifyProjectAccess(supabase, projectId, user.id);
 
+    if (!isSupabaseConfigured()) {
+      const store = getStore();
+      const ideas = store.ideas.filter((i) => i.project_id === projectId);
+      return NextResponse.json({ ideas });
+    }
+
     const { data: ideas, error } = await supabase
       .from('ideas')
       .select('*, idea_votes(user_id, vote)')
@@ -25,7 +33,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Transform vote counts and determine if current user voted
     const formattedIdeas = (ideas || []).map((idea: any) => {
       const votes = idea.idea_votes || [];
       const votesCount = votes.reduce((sum: number, v: any) => sum + (v.vote || 0), 0);
@@ -65,6 +72,27 @@ export async function POST(req: NextRequest) {
 
     const { projectId, sourceRoomId, sourceMessageId, title, description, tags, status } = parse.data;
     await verifyProjectAccess(supabase, projectId, user.id);
+
+    if (!isSupabaseConfigured()) {
+      const store = getStore();
+      const newIdea: Idea = {
+        id: `idea-${Date.now()}`,
+        project_id: projectId,
+        source_room_id: sourceRoomId || null,
+        source_message_id: sourceMessageId || null,
+        created_by: user.id,
+        title,
+        description,
+        status: status || 'proposed',
+        tags: tags || [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        votes_count: 1,
+        user_voted: true,
+      };
+      store.ideas.push(newIdea);
+      return NextResponse.json({ idea: newIdea }, { status: 201 });
+    }
 
     const { data: idea, error } = await supabase
       .from('ideas')
@@ -111,7 +139,17 @@ export async function PATCH(req: NextRequest) {
 
     const { ideaId, status } = parse.data;
 
-    // Fetch idea to check access
+    if (!isSupabaseConfigured()) {
+      const store = getStore();
+      const idea = store.ideas.find((i) => i.id === ideaId);
+      if (!idea) {
+        return NextResponse.json({ error: 'Idea not found' }, { status: 404 });
+      }
+      idea.status = status;
+      idea.updated_at = new Date().toISOString();
+      return NextResponse.json({ idea });
+    }
+
     const { data: existingIdea, error: fetchErr } = await supabase
       .from('ideas')
       .select('project_id')

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { requireAuth, verifyProjectAccess } from '@/lib/permissions/workspace';
 import { voteIdeaSchema } from '@/lib/validation/schemas';
+import { getStore } from '@/lib/store/workspace-store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,6 +21,31 @@ export async function POST(req: NextRequest) {
 
     const { ideaId, vote } = parse.data;
 
+    if (!isSupabaseConfigured()) {
+      const store = getStore();
+      const idea = store.ideas.find((i) => i.id === ideaId);
+      if (!idea) {
+        return NextResponse.json({ error: 'Idea not found' }, { status: 404 });
+      }
+
+      const wasVoted = !!idea.user_voted;
+      const willVote = vote === 1;
+
+      if (wasVoted && !willVote) {
+        idea.votes_count = Math.max(0, (idea.votes_count || 1) - 1);
+        idea.user_voted = false;
+      } else if (!wasVoted && willVote) {
+        idea.votes_count = (idea.votes_count || 0) + 1;
+        idea.user_voted = true;
+      }
+
+      return NextResponse.json({
+        success: true,
+        votesCount: idea.votes_count,
+        userVoted: idea.user_voted,
+      });
+    }
+
     // Check project access
     const { data: idea, error: ideaErr } = await supabase
       .from('ideas')
@@ -34,14 +60,12 @@ export async function POST(req: NextRequest) {
     await verifyProjectAccess(supabase, idea.project_id, user.id);
 
     if (vote === 0) {
-      // Remove vote
       await supabase
         .from('idea_votes')
         .delete()
         .eq('idea_id', ideaId)
         .eq('user_id', user.id);
     } else {
-      // Cast upvote (enforcing unique constraint)
       const { error: voteErr } = await supabase.from('idea_votes').upsert({
         idea_id: ideaId,
         user_id: user.id,
@@ -53,7 +77,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Return new vote count
     const { data: votes } = await supabase
       .from('idea_votes')
       .select('vote')

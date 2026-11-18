@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { requireAuth, verifyProjectAccess } from '@/lib/permissions/workspace';
 import { createActionItemSchema, updateActionItemStatusSchema } from '@/lib/validation/schemas';
+import { getStore } from '@/lib/store/workspace-store';
+import { getAuthorizedMemberById } from '@/lib/auth/authorized-members';
+import { ActionItem } from '@/types';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,26 +18,33 @@ export async function GET(req: NextRequest) {
 
     await verifyProjectAccess(supabase, projectId, user.id);
 
+    if (!isSupabaseConfigured()) {
+      const store = getStore();
+      const items = store.actionItems
+        .filter((a) => a.project_id === projectId)
+        .map((a) => {
+          const assignee = a.assignee_user_id ? getAuthorizedMemberById(a.assignee_user_id) : undefined;
+          return {
+            ...a,
+            assignee_profile: assignee
+              ? { id: assignee.id, display_name: assignee.name, avatar_url: null, created_at: '' }
+              : undefined,
+          };
+        });
+      return NextResponse.json({ actionItems: items });
+    }
+
     const { data: items, error } = await supabase
       .from('action_items')
-      .select('*, assignee_profile:profiles!action_items_assignee_user_id_fkey(id, display_name, avatar_url)')
+      .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
 
     if (error) {
-      const { data: fallbackItems, error: fallbackErr } = await supabase
-        .from('action_items')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
-
-      if (fallbackErr) {
-        return NextResponse.json({ error: fallbackErr.message }, { status: 500 });
-      }
-      return NextResponse.json({ actionItems: fallbackItems });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ actionItems: items });
+    return NextResponse.json({ actionItems: items || [] });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Unauthorized' },
@@ -60,6 +70,24 @@ export async function POST(req: NextRequest) {
 
     const { projectId, title, description, assigneeUserId, dueAt, status } = parse.data;
     await verifyProjectAccess(supabase, projectId, user.id);
+
+    if (!isSupabaseConfigured()) {
+      const store = getStore();
+      const newItem: ActionItem = {
+        id: `task-${Date.now()}`,
+        project_id: projectId,
+        title,
+        description: description || null,
+        assignee_user_id: assigneeUserId || null,
+        created_by: user.id,
+        due_at: dueAt || null,
+        status: status || 'open',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      store.actionItems.push(newItem);
+      return NextResponse.json({ actionItem: newItem }, { status: 201 });
+    }
 
     const { data: item, error } = await supabase
       .from('action_items')
@@ -104,6 +132,17 @@ export async function PATCH(req: NextRequest) {
     }
 
     const { actionItemId, status } = parse.data;
+
+    if (!isSupabaseConfigured()) {
+      const store = getStore();
+      const item = store.actionItems.find((a) => a.id === actionItemId);
+      if (!item) {
+        return NextResponse.json({ error: 'Action item not found' }, { status: 404 });
+      }
+      item.status = status;
+      item.updated_at = new Date().toISOString();
+      return NextResponse.json({ actionItem: item });
+    }
 
     const { data: item, error: fetchErr } = await supabase
       .from('action_items')

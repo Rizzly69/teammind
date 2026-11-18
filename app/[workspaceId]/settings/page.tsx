@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { ALLOWED_MODELS } from '@/lib/ai/model-config';
+import { AUTHORIZED_MEMBERS } from '@/lib/auth/authorized-members';
 
 export default function WorkspaceSettingsPage() {
   const params = useParams();
@@ -93,74 +94,43 @@ export default function WorkspaceSettingsPage() {
         </div>
       )}
 
-      {/* Section 1: Team Invitations */}
+      {/* Section 1: Authorized Team Members */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
             <Users className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Invite Team Members</h3>
+            <h3 className="text-sm font-bold text-white">Authorized Team Roster</h3>
             <p className="text-xs text-slate-400">
-              Only workspace owners can invite new collaborators.
+              Only provisioned team members can access this workspace by entering their name.
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSendInvite} className="flex flex-wrap items-center gap-3 pt-2">
-          <div className="relative flex-1 min-w-[240px]">
-            <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-            <input
-              type="email"
-              required
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="colleague@company.com"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <select
-            value={inviteRole}
-            onChange={(e) => setInviteRole(e.target.value as any)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none"
-          >
-            <option value="member">Member</option>
-            <option value="owner">Workspace Owner</option>
-          </select>
-
-          <button
-            type="submit"
-            disabled={inviting || !inviteEmail.trim()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
-          >
-            {inviting ? 'Generating...' : 'Create Invite Link'}
-          </button>
-        </form>
-
-        {inviteResult && (
-          <div className="mt-3 p-3 bg-emerald-950/40 border border-emerald-800/60 rounded-xl text-xs space-y-2">
-            <div className="text-emerald-300 flex items-center space-x-1.5 font-medium">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Invitation link generated for {inviteResult.email}!</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          {AUTHORIZED_MEMBERS.map((member) => (
+            <div
+              key={member.id}
+              className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between"
+            >
+              <div className="flex items-center space-x-3">
+                <div
+                  className={`w-8 h-8 rounded-lg ${member.avatarColor} text-white font-bold flex items-center justify-center text-xs shadow-sm`}
+                >
+                  {member.name[0]}
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-100">{member.name}</div>
+                  <div className="text-[10px] text-slate-400">{member.email}</div>
+                </div>
+              </div>
+              <span className="text-[10px] font-semibold bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700 capitalize">
+                {member.role}
+              </span>
             </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                readOnly
-                value={inviteResult.inviteLink}
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono"
-              />
-              <button
-                onClick={copyToClipboard}
-                className="flex items-center space-x-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-colors"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
 
       {/* Section 2: AI Cost Controls & Spending Limits */}

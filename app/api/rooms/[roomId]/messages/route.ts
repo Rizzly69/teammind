@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { requireAuth, verifyRoomAccess } from '@/lib/permissions/workspace';
 import { sendMessageSchema } from '@/lib/validation/schemas';
+import { getStore } from '@/lib/store/workspace-store';
+import { getAuthorizedMemberById } from '@/lib/auth/authorized-members';
+import { Message } from '@/types';
 
 export async function GET(
   req: NextRequest,
@@ -14,28 +17,33 @@ export async function GET(
 
     await verifyRoomAccess(supabase, roomId, user.id);
 
+    if (!isSupabaseConfigured()) {
+      const store = getStore();
+      const messages = store.messages
+        .filter((m) => m.room_id === roomId)
+        .map((m) => {
+          const member = m.sender_user_id ? getAuthorizedMemberById(m.sender_user_id) : undefined;
+          return {
+            ...m,
+            sender_profile: member
+              ? { id: member.id, display_name: member.name, avatar_url: null, created_at: '' }
+              : undefined,
+          };
+        });
+      return NextResponse.json({ messages });
+    }
+
     const { data: messages, error } = await supabase
       .from('messages')
-      .select('*, sender_profile:profiles!messages_sender_user_id_fkey(id, display_name, avatar_url)')
+      .select('*')
       .eq('room_id', roomId)
       .order('created_at', { ascending: true });
 
     if (error) {
-      // Fallback if profiles foreign key relation isn't explicitly defined in join
-      const { data: rawMessages, error: rawError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true });
-
-      if (rawError) {
-        return NextResponse.json({ error: rawError.message }, { status: 500 });
-      }
-
-      return NextResponse.json({ messages: rawMessages });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ messages });
+    return NextResponse.json({ messages: messages || [] });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Unauthorized' },
@@ -66,6 +74,29 @@ export async function POST(
     }
 
     const { content } = parse.data;
+
+    if (!isSupabaseConfigured()) {
+      const store = getStore();
+      const newMsg: Message = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        room_id: roomId,
+        sender_user_id: user.id,
+        sender_type: 'user',
+        model_id: null,
+        content,
+        status: 'complete',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        sender_profile: {
+          id: user.id,
+          display_name: user.name || 'Team Member',
+          avatar_url: null,
+          created_at: '',
+        },
+      };
+      store.messages.push(newMsg);
+      return NextResponse.json({ message: newMsg }, { status: 201 });
+    }
 
     const { data: message, error } = await supabase
       .from('messages')
